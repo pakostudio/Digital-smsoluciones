@@ -1,95 +1,39 @@
-# MENLUN Control 360
+# SM OS · SM Soluciones
 
-MENLUN Control 360 es un MVP web estatico para operar y supervisar reportes internos por gerencia. Esta construido con HTML, CSS y JavaScript puro, sin backend ni base de datos por ahora.
+SM OS es el CRM / gestor de proyectos de SM Soluciones (Pako Studio). Es una app web estática (HTML, CSS y JavaScript puro) con backend en Supabase (Postgres + REST) y funciones serverless en Vercel para alertas por correo vía Resend.
 
-El sistema usa identidad visual PMPS: Arial, azul marino `#0B2A4A`, cyan `#00A7D8`, blanco `#FFFFFF` y gris claro `#F4F7FA`.
+Incluye además un módulo de inventario para Prokicks.
 
-## Usuarios demo
+## Stack
 
-| Usuario | Email | Contrasena / PIN | Rol | Acceso |
-| --- | --- | --- | --- | --- |
-| Pako | `pako@menlun.com` | `1234` | Administrador General | Acceso total |
-| Carmen | `carmen@menlun.com` | `1234` | Acceso Total Operativo | Acceso total |
-| Direccion General | `direccion@menlun.com` | `1234` | Vista Ejecutiva | Dashboard, calendario y reportes |
-| Produccion | `produccion@menlun.com` | `2401` | Gerente de Produccion | Solo Produccion |
-
-Los demas gerentes usan el email de su gerencia y el PIN configurado en el panel Gerencias.
+- Frontend: HTML/CSS/JS puro (`index.html`, `assets/js/app.js`, `assets/css/styles.css`), sin build ni framework.
+- Backend de datos: Supabase (Postgres, autenticación por PIN con verificación vía RPC `sm_verify_pin`).
+- Alertas: funciones serverless en `api/` (Vercel) + `server/alerts-lib.js`, envío de correo con Resend, cron diario configurado en `vercel.json`.
+- Base de datos: scripts SQL en `supabase/` (`pako-crm-base.sql`, `security-hardening.sql`, `notifications.sql`, `prokicks-inventory.sql`).
 
 ## Roles
 
-- **Administrador General:** ve todos los modulos, gerencias, reportes, autorizaciones y dashboards.
-- **Acceso Total Operativo:** ve todos los modulos operativos y administrativos.
-- **Direccion General:** consulta informacion ejecutiva y reportes, sin edicion.
-- **Gerente de area:** ve solo su gerencia, sus reportes, sus tareas, captura, kanban y calendario.
+- `admin`: acceso total, crea/edita proyectos y usuarios.
+- `responsable`: edita proyectos y tareas donde es responsable.
+- `colaborador`: edita tareas donde participa.
+- `lectura`: solo consulta, sin edición.
 
-## Modulos incluidos
+## Seguridad
 
-- Login demo por email y contrasena/PIN.
-- Dashboard ejecutivo.
-- Panel Carmen.
-- Panel Gerencias.
-- Captura de reportes.
-- Kanban por estatus.
-- Calendario mensual.
-- Modulos por gerencia:
-  - Produccion
-  - Calidad
-  - Compras
-  - Almacen
-  - Logistica
-  - Mantenimiento
-  - Ventas
-  - Recursos Humanos
-  - Contabilidad
-  - Sistemas
+Ver `docs/security-status.md`, `VERSION_NOTES_SM_OS_2_5.md` y `CHECKLIST_SM_OS_2_5.md` para el estado y los pendientes de seguridad (hardening de PIN, RLS y alertas).
 
-## Flujo de operacion
+## Módulo de inventario Prokicks
 
-1. El usuario inicia sesion con email y contrasena/PIN demo.
-2. El sistema muestra solo los modulos permitidos para su rol.
-3. Pako y Carmen pueden revisar el dashboard ejecutivo, Panel Carmen, Gerencias, reportes, kanban y calendario.
-4. Direccion General puede consultar informacion ejecutiva, calendario y reportes por gerencia.
-5. Cada gerente puede capturar reportes y revisar informacion de su propia area.
-6. Los reportes alimentan tarjetas, tablas, bandejas de autorizacion, kanban y vistas por gerencia.
+Ver `VERSION_NOTES_INVENTARIO_PROKICKS.md` y `CHECKLIST_INVENTARIO_PROKICKS.md`.
 
-## Limitaciones actuales del MVP
+## Despliegue
 
-- No hay backend.
-- No hay base de datos.
-- Los datos demo viven en `app.js`.
-- Las acciones como editar, desactivar o revisar son simuladas.
-- Los reportes capturados se mantienen solo durante la sesion del navegador.
-- No hay autenticacion real ni seguridad productiva.
+El sitio se despliega en Vercel (ver `vercel.json` para headers de seguridad y el cron de alertas). La base de datos vive en Supabase; los scripts SQL deben ejecutarse manualmente en el SQL Editor de Supabase en el orden indicado en `CHECKLIST_SM_OS_2_5.md`.
 
-## Pendientes futuros
+## Variables de entorno (Vercel)
 
-- Conectar backend y base de datos.
-- Implementar autenticacion real.
-- Persistir reportes, usuarios, gerencias y autorizaciones.
-- Agregar carga real de evidencias.
-- Agregar filtros avanzados por fecha, gerencia, estatus y prioridad.
-- Exportar reportes a Excel/PDF.
-- Agregar bitacora de cambios.
-- Agregar permisos finos por accion.
-- Crear version movil optimizada.
-- Agregar pruebas automatizadas formales.
-
-## Despliegue en GitHub Pages
-
-1. Crear un repositorio en GitHub.
-2. Subir estos archivos al repositorio:
-   - `index.html`
-   - `styles.css`
-   - `app.js`
-   - `assets/pmps-logo.png`
-   - `README.md`
-3. Entrar a **Settings** del repositorio.
-4. Ir a **Pages**.
-5. En **Build and deployment**, seleccionar:
-   - Source: `Deploy from a branch`
-   - Branch: `main`
-   - Folder: `/root`
-6. Guardar la configuracion.
-7. Esperar a que GitHub genere la URL publica.
-
-La app puede ejecutarse directamente como sitio estatico porque no requiere servidor ni compilacion.
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `RESEND_API_KEY`
+- `ALERT_FROM_EMAIL`
+- `CRON_SECRET`
