@@ -3009,11 +3009,73 @@ function buildSelector(){
       document.getElementById('pin-wrap').style.display = 'block';
       document.getElementById('btn-login').style.display = 'block';
       document.getElementById('lerr').textContent = '';
-      var pi = document.getElementById('f-pin');
-      pi.value = '';
-      setTimeout(function(){ pi.focus(); }, 80);
+      resetOtpBoxes(true);
     });
     container.appendChild(btn);
+  });
+}
+
+/* ── OTP PIN BOXES ── */
+function otpBoxes(){ return Array.prototype.slice.call(document.querySelectorAll('.otp-box')); }
+function syncOtpToPin(){
+  document.getElementById('f-pin').value = otpBoxes().map(function(b){ return b.value; }).join('');
+}
+function resetOtpBoxes(focusFirst){
+  otpBoxes().forEach(function(b){ b.value=''; b.classList.remove('filled','deal','shake'); });
+  document.getElementById('f-pin').value = '';
+  if(focusFirst){
+    var first = otpBoxes()[0];
+    if(first) setTimeout(function(){ first.focus(); }, 80);
+  }
+}
+function shakeOtpBoxes(){
+  otpBoxes().forEach(function(b){
+    b.classList.add('shake');
+    b.addEventListener('animationend', function h(){ b.classList.remove('shake'); b.removeEventListener('animationend',h); });
+  });
+}
+function initOtpBoxes(){
+  var boxes = otpBoxes();
+  boxes.forEach(function(box,i){
+    box.addEventListener('input', function(){
+      box.value = box.value.replace(/[^0-9a-zA-Z]/g,'').slice(-1);
+      if(box.value){
+        box.classList.add('filled');
+        box.classList.remove('deal');
+        void box.offsetWidth;
+        box.classList.add('deal');
+        var next = boxes[i+1];
+        if(next) next.focus();
+      } else {
+        box.classList.remove('filled');
+      }
+      syncOtpToPin();
+      if(boxes.every(function(b){ return b.value; })){
+        doLogin();
+      }
+    });
+    box.addEventListener('keydown', function(e){
+      if(e.key==='Backspace' && !box.value && i>0){
+        boxes[i-1].focus();
+        boxes[i-1].value='';
+        boxes[i-1].classList.remove('filled');
+        syncOtpToPin();
+      } else if(e.key==='Enter'){
+        doLogin();
+      }
+    });
+    box.addEventListener('paste', function(e){
+      e.preventDefault();
+      var text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9a-zA-Z]/g,'');
+      if(!text) return;
+      text.split('').forEach(function(ch,k){
+        if(boxes[k]){ boxes[k].value = ch; boxes[k].classList.add('filled'); }
+      });
+      syncOtpToPin();
+      var last = boxes[Math.min(text.length,boxes.length)-1];
+      if(last) last.focus();
+      if(boxes.every(function(b){ return b.value; })) doLogin();
+    });
   });
 }
 
@@ -3035,22 +3097,40 @@ async function verifyUserPin(userId,pin){
   return legacy.error ? null : legacy.data;
 }
 
+var OTP_BUSY = false;
 async function doLogin(){
+  if(OTP_BUSY) return;
   if(!SELUID){ document.getElementById('lerr').textContent='Selecciona tu nombre.'; return; }
   var pin = document.getElementById('f-pin').value.trim();
   if(!pin){ document.getElementById('lerr').textContent='Ingresa tu PIN.'; return; }
+  OTP_BUSY = true;
   document.getElementById('lerr').textContent = 'Validando acceso…';
   var found = await verifyUserPin(SELUID,pin);
+  OTP_BUSY = false;
   if(!found){
     document.getElementById('lerr').textContent = 'PIN incorrecto.';
-    document.getElementById('f-pin').value = '';
-    document.getElementById('f-pin').focus();
+    shakeOtpBoxes();
+    resetOtpBoxes(true);
     return;
   }
   activateSession(found,{view:'dashboard',fpid:'',ptab:'tareas',pktab:'dashboard'});
 }
 
+function showPreloader(){
+  var el = document.getElementById('preloader');
+  if(!el) return;
+  el.classList.add('show');
+  requestAnimationFrame(function(){ el.classList.add('visible'); });
+}
+function hidePreloader(){
+  var el = document.getElementById('preloader');
+  if(!el) return;
+  el.classList.remove('visible');
+  setTimeout(function(){ el.classList.remove('show'); }, 380);
+}
 function activateSession(found,state){
+  showPreloader();
+  var plStart = Date.now();
   SES = {userId: found.id};
   document.getElementById('lerr').textContent = '';
   document.body.classList.add('logged');
@@ -3068,6 +3148,8 @@ function activateSession(found,state){
   document.querySelectorAll('.nbtn').forEach(function(b){ b.classList.toggle('active', b.dataset.v===VIEW); });
   render();
   saveSession();
+  var plElapsed = Date.now()-plStart;
+  setTimeout(hidePreloader, Math.max(0,550-plElapsed));
 }
 
 function restoreSession(){
@@ -3080,7 +3162,7 @@ function restoreSession(){
 }
 
 document.getElementById('btn-login').addEventListener('click', doLogin);
-document.getElementById('f-pin').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+initOtpBoxes();
 async function doLogout(){
   if(!await smConfirm('Cerrar sesión','¿Quieres salir del CRM en este navegador?','Cerrar sesión')) return;
   clearSession();
@@ -3091,7 +3173,7 @@ async function doLogout(){
   buildProjectNav();
   document.getElementById('pin-wrap').style.display = 'none';
   document.getElementById('btn-login').style.display = 'none';
-  document.getElementById('f-pin').value = '';
+  resetOtpBoxes(false);
   document.getElementById('lerr').textContent = '';
   document.querySelectorAll('.usbtn').forEach(function(b){ b.classList.remove('sel'); });
 }
